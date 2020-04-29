@@ -1,5 +1,14 @@
-from random import choice, randint, uniform, sample
+from random import choice, randint, uniform, sample, seed
 from math import floor, exp, inf
+import sys
+
+
+def read_file(filename):
+    a = []
+    with open(filename) as f:
+        for line in f:
+            a.append(int(line.strip()))
+    return a
 
 
 class MaxHeap():
@@ -15,13 +24,13 @@ class MaxHeap():
         return index//2
 
     def get_right(self, index):
-        return (2 * index) + 1
+        return (2*index) + 1
 
     def get_left(self, index):
-        return 2 * index
+        return 2*index
 
-    def swap(self, smaller, larger):
-        self.heap[smaller], self.heap[larger] = self.heap[larger], self.heap[smaller]
+    def swap(self, index1, index2):
+        self.heap[index1], self.heap[index2] = self.heap[index2], self.heap[index1]
 
     def max_heapify(self, index):
         l = self.get_left(index)
@@ -30,12 +39,11 @@ class MaxHeap():
             largest = l
         else:
             largest = index
-        if r <= self.size and self.heap[r] > self.heap[index]:
+        if r <= self.size and self.heap[r] > self.heap[largest]:
             largest = r
-        else:
-            largest = index
         if largest != index:
             self.swap(index, largest)
+            self.max_heapify(largest)
 
     def build_heap(self):
         for i in range(self.size//2, 0, -1):
@@ -52,8 +60,9 @@ class MaxHeap():
         self.size += 1
         self.heap.append(v)
         n = self.size
-        while n != self.root and self.heap[self.get_parent(n)] < self.heap[n]:
+        while (n != self.root) and (self.heap[self.get_parent(n)] < self.heap[n]):
             self.swap(self.get_parent(n), n)
+            n = self.get_parent(n)
 
 
 def repeated_random(nums, max_iter):
@@ -129,13 +138,13 @@ def simulated_annealing(nums, max_iter):
 
 def prepart_random(nums, max_iter):
     n = len(nums)
-    p = [randint(0, n) for x in range(n)]
+    p = [randint(0, n-1) for x in range(n)]
     a = [0] * n
     for i in range(n):
         a[p[i]] += nums[i]
     res = karmarkar(a)
     for i in range(max_iter):
-        p = [randint(0, n) for x in range(n)]
+        p = [randint(0, n-1) for x in range(n)]
         a = [0] * n
         for j in range(n):
             a[p[j]] += nums[j]
@@ -149,28 +158,62 @@ def prepart_random(nums, max_iter):
 
 def prepart_hill(nums, max_iter):
     n = len(nums)
-    p = [randint(0, n) for x in range(n)]
+    p = [randint(0, n-1) for x in range(n)]
     a = [0] * n
     for j in range(n):
         a[p[j]] += nums[j]
-    res =  karmarkar(a_prime)
+    res =  karmarkar(a)
     for i in range(max_iter):
-        r1, r2 = randint(0, n), randint(0, n)
+        r1, r2 = randint(0, n-1), randint(0, n-1)
         while r2 == p[r1]:
-            r2 = randint(0, n)
-        a[p[r1]] -= nums[r1]
-        p[r1] = r2
-        a[p[r1]] += nums[r1]
-        res_prime = karmarkar(a)
+            r2 = randint(0, n-1)
+        a_prime, p_prime = a, p
+        a_prime[p[r1]] -= nums[r1]
+        p_prime[r1] = r2
+        a_prime[p_prime[r1]] += nums[r1]
+        res_prime = karmarkar(a_prime)
         if res_prime < res:
             res = res_prime
+            a = a_prime
+            p = p_prime
             if res == 0:
                 return res
     return res
 
 
 def prepart_annealing(nums, max_iter):
-    return
+    n = len(nums)
+    p = [randint(0, n-1) for x in range(n)]
+    a = [0] * n
+    for j in range(n):
+        a[p[j]] += nums[j]
+    res =  karmarkar(a)
+    res_best = res
+    for i in range(max_iter):
+        r1, r2 = randint(0, n-1), randint(0, n-1)
+        while r2 == p[r1]:
+            r2 = randint(0, n-1)
+        a_prime, p_prime = a, p
+        a_prime[p[r1]] -= nums[r1]
+        p_prime[r1] = r2
+        a_prime[p_prime[r1]] += nums[r1]
+        res_prime = karmarkar(a_prime)
+        if res_prime < res:
+            res = res_prime
+            a = a_prime
+            p = p_prime
+            if res == 0:
+                return res
+        else:
+            t_iter = 10**10 * (0.8 ** floor(i/300))
+            prob = exp(-(res_prime - res)/t_iter)
+            if uniform(0, 1) <= prob:
+                res = res_prime
+                p = p_prime
+                a = a_prime
+        if res < res_best:
+            res_best = res
+    return res
 
 
 def karmarkar(nums):
@@ -178,9 +221,35 @@ def karmarkar(nums):
     large1 = num_heap.extract_max()
     large2 = num_heap.extract_max()
     while large2 != 0:
-        print(large1, large2)
         num_heap.insert(large1 - large2)
         num_heap.insert(0)
         large1 = num_heap.extract_max()
         large2 = num_heap.extract_max()
     return large1
+
+
+if __name__ == "__main__":
+    flag = int(sys.argv[1])
+    alg = int(sys.argv[2])
+    if flag == 0:
+        filename = sys.argv[3]
+        numbers = read_file(filename)
+    else:
+        numbers = [randint(1, 10**12) for z in range(100)]
+
+    if alg == 0:
+        print(karmarkar(numbers))
+    elif alg == 1:
+        print(repeated_random(numbers, 25000))
+    elif alg == 2:
+        print(hill_climbing(numbers, 25000))
+    elif alg == 3:
+        print(simulated_annealing(numbers, 25000))
+    elif alg == 11:
+        print(prepart_random(numbers, 25000))
+    elif alg == 12:
+        print(prepart_hill(numbers, 25000))
+    elif alg == 13:
+        print(prepart_annealing(numbers, 25000))
+    else:
+        print("No algorithm chosen, please try again")
